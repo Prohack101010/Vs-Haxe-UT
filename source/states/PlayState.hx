@@ -28,9 +28,8 @@ class PlayState extends State
 	public static var instance:PlayState;
 
 	public var selected:Int = 0;
-	public var arraySelected:Int = 0;
 
-	final choices:Array<String> = ['Fight', 'Act', 'Item', 'Spare'];
+	final choices:Array<String> = ['Fight', 'Act', 'Item', 'Mercy'];
 
 	public var items:FlxTypedGroup<FlxSprite>;
 
@@ -38,13 +37,6 @@ class PlayState extends State
 	public var hpName:FlxSprite;
 	public var hpBar:FlxBar;
 	public var hpInfo:FlxText;
-
-	// Attack Testi
-	public var Attack1:Attack = new Attack();
-
-	//Daha iyi act sistemi
-	public var actPage:ActBar = new ActBar();
-	public var actOptions:Array<String> = ['Fuck', 'This', 'Shit', 'Im out'];
 
 	public var box:FlxShapeBox;
 	public var heart:FlxSprite;
@@ -61,8 +53,6 @@ class PlayState extends State
 	public var defaultText:String;
 
 	public var choiceSelected:Bool = false;
-	public var arrayChoiceSelected:Bool = false;
-	public var arrayChoiceMenuOpened:Bool = false;
 	public var choiceChoiced:Bool = false;
 
 	public var monster:Monster;
@@ -70,14 +60,35 @@ class PlayState extends State
 	public var camGame:FlxCamera;
 	public var camAttack:FlxCamera;
 
-	//benim eklediğim variable'lar
+	/* benim eklediğim variable'lar */
+	public var arrayChoiceSelected:Bool = false;
+	public var arrayChoiceMenuOpened:Bool = false;
+	public var attackFix:Bool = false; //basit bir fix
+	public var arraySelected:Int = 0;
+
+	// Attack Sistemi
+	public var Attack1:Attack = new Attack();
+
+	//Daha iyi act sistemi
+	public var actPage:ActBar = new ActBar();
+	public var actOptions:Array<String> = ['Fuck', 'This', 'Shit', 'Im out'];
+
+	//Daha iyi item sistemi
+	public var itemPage:ActBar = new ActBar();
+	public var itemOptions:Array<String> = Global.items.copy();
+
+	//Daha iyi mercy sistemi
+	public var mercyPage:ActBar = new ActBar();
+	public var mercyOptions:Array<String> = ['Mercy', 'Flee'];
+
+	public var curArrayMenu:String = null;
 	public var isDead:Bool = false; //ölümü kontrol etcek çünkü orjinal projeyi yapan mal yanlış yöntem kullanmış ve ektra kod eklemesi zor
 
 	override public function create()
 	{
 		super.create();
 
-		//Reset HP
+		//Reset HP, If is it jot the same as the maximum one
 		if (Global.hp != Global.maxHp)
 			Global.hp = Global.maxHp;
 
@@ -135,7 +146,7 @@ class PlayState extends State
 					bt.x = 185;
 				case 'Item':
 					bt.x = 345;
-				case 'Spare':
+				case 'Mercy':
 					bt.x = 500;
 			}
 
@@ -153,11 +164,21 @@ class PlayState extends State
 		box.cameras = [camGame];
 		add(box);
 
-		defaultText = '* You feel like you\'re going to\n  have a bad time.';
-		dialogText.createDialog([defaultText], 1, false); //dialogs
+		defaultText = 'You feel like you\'re going to\n  have a bad time.';
+		dialogText.createMenu(1, false); //dialogs
+		dialogText.updateMenuItems([defaultText], false);
 
-		actPage.createDialog(actOptions, 4, true); //Create Act Options
-		actPage.disableAct(); //disable Act Menu's visibility
+		actPage.createMenu(4, true); //Create Act Options
+		actPage.updateMenuItems(actOptions);
+		actPage.visible = false; //disable Act Menu's visibility
+
+		itemPage.createMenu(4, true);
+		itemPage.updateMenuItems(itemOptions);
+		itemPage.visible = false;
+
+		mercyPage.createMenu(4, true);
+		mercyPage.updateMenuItems(mercyOptions);
+		mercyPage.visible = false;
 
 		heart = new FlxSprite(0, 0, Paths.sprite('heart'));
 		heart.color = FlxColor.RED;
@@ -241,10 +262,17 @@ class PlayState extends State
 
 				//A Multiple option menu after clicking Monster's name on act button
 				if(arrayChoiceMenuOpened) { //The texts appear after the selecting the talk option or something
-					actThing();
+					switch (curArrayMenu) {
+						case 'Act':
+							actThing();
+						case 'Item':
+							itemThing();
+						case 'Mercy':
+							mercyThing();
+					}
 				}
 				else if (arrayChoiceSelected) { //The function after the skipping the act text
-					secondActThing();
+					TriggerAttack();
 				}
 				else if (choiceSelected)
 				{
@@ -255,25 +283,32 @@ class PlayState extends State
 							targetAttackerUnderlay.x = dialogText.textOption1.x - 2;
 							targetAttackerBase.x = dialogText.textOption1.x - 2;
 							choiceChoiced = true;
-							dialogText.items.visible = false;
+							attackFix = true;
+							dialogText.changeText(1, '', false);
 							targetSpr.visible = true;
 							targetAttackerBase.visible = true;
 							trace("unun");
-							targetChoiceTween = FlxTween.tween(targetAttackerBase, {x: box.width + 20, y: dialogText.textOption1.y - 10}, 2);
+							targetChoiceTween = FlxTween.tween(targetAttackerBase, {x: box.width + 20, y: dialogText.textOption1.y - 10}, 2, {onComplete: function(tween:FlxTween):Void
+								{
+									attacked = false;
+									targetAttackerUnderlay.visible = false;
+									targetAttackerBase.visible = false;
+									targetSpr.visible = false;
+									TriggerAttack();
+								}
+							});
 							targetChoiceTween.start();
 						case 'Act':
 							heart.visible = true;
 							arrayChoiceMenuOpened = true;
 							arraySelected = 0;
 							dialogText.changeText(1, '', true);
-							actPage.enableAct();
+							actPage.visible = true;
 							changeChoice();
 					}
 				}
 				else
 				{
-					dialogText.items.visible = true;
-
 					if (choices[selected] == 'Item' && Global.items.length <= 0)
 						return;
 
@@ -283,44 +318,69 @@ class PlayState extends State
 					{
 						case 'Fight':
 							heart.setPosition(box.x + 16, box.y + 26);
-							dialogText.changeText(1, '* ${monster.data.name}', true);
+							dialogText.changeText(1, '${monster.data.name}', true);
 						case 'Act':
 							heart.setPosition(box.x + 16, box.y + 26);
-							dialogText.changeText(1, '* ${monster.data.name}', true);
+							dialogText.changeText(1, '${monster.data.name}', true);
+							curArrayMenu = 'Act';
+						/*
 						case 'Item':
 							heart.setPosition(box.x + 16, box.y + 26);
-							dialogText.changeText(1, '* Item Selected...', true);
-						case 'Spare':
-							heart.setPosition(box.x + 16, box.y + 26);
-							dialogText.changeText(1, '* Mercy Selected...', true);
+							dialogText.changeText(1, 'Item Selected...', true);
+						*/
+						case 'Item':
+							if (itemOptions != []) {
+								heart.visible = true;
+								arrayChoiceMenuOpened = true;
+								curArrayMenu = 'Item';
+								arraySelected = 0;
+								dialogText.changeText(1, '', true);
+								itemPage.visible = true;
+								changeChoice();
+							}
+						case 'Mercy':
+							heart.visible = true;
+							arrayChoiceMenuOpened = true;
+							curArrayMenu = 'Mercy';
+							arraySelected = 0;
+							dialogText.changeText(1, '', true);
+							mercyPage.visible = true;
+							changeChoice();
 					}
 				}
 			}
-			else if ((FlxG.keys.justPressed.X #if TOUCH_CONTROLS || mobilePad.buttonB.justPressed #end))
+			else if ((FlxG.keys.justPressed.X #if TOUCH_CONTROLS || mobilePad.buttonB.justPressed #end) && !arrayChoiceSelected)
 			{
-				if (arrayChoiceMenuOpened) {
+				if (arrayChoiceMenuOpened && curArrayMenu == 'Act') {
 					heart.visible = true;
 					arrayChoiceMenuOpened = false;
-					actPage.disableAct();
+					actPage.visible = false;
+
+					//Gerisi normal şeyler
 					heart.setPosition(box.x + 16, box.y + 26);
-					dialogText.changeText(1, '* ${monster.data.name}', true);
+					dialogText.changeText(1, '${monster.data.name}', true);
 				}
-				else if (choiceSelected) {
+				else if (choiceSelected || arrayChoiceMenuOpened) {
+					//Sayfalar (menüler'de denebilir)
+					itemPage.visible = false;
+					mercyPage.visible = false;
+
+					arrayChoiceMenuOpened = false;
 					choiceSelected = false;
 					changeChoice();
 
-					dialogText.items.visible = true;
 					dialogText.changeText(1, defaultText, false);
 				}
 			}
 		}
 		else
 		{
-			if (FlxG.keys.justPressed.Z #if TOUCH_CONTROLS || mobilePad.buttonA.justPressed #end)
+			if ((FlxG.keys.justPressed.Z #if TOUCH_CONTROLS || mobilePad.buttonA.justPressed #end) && (!choiceChoiced || attackFix))
 			{
 				if (targetChoiceTween.active)
 				{
 					targetChoiceTween.cancel();
+					attackFix = false;
 					FlxG.sound.play(Paths.sound('slice'));
 					targetAttackerUnderlay.x = targetAttackerBase.x;
 					attacked = true;
@@ -331,18 +391,7 @@ class PlayState extends State
 						targetAttackerUnderlay.visible = false;
 						targetAttackerBase.visible = false;
 						targetSpr.visible = false;
-						var boxTween:FlxTween = FlxTween.tween(box, {x: 248.875, shapeWidth: box.shapeHeight}, 0.5, {
-							onComplete: function(tween:FlxTween):Void
-							{
-								changeChoice();
-								heart.x = ((box.x - box.offset.x) + box.shapeWidth / 2) - heart.width;
-								heart.y = ((box.x - box.offset.y) + box.shapeWidth / 2) - heart.height;
-								heart.visible = true;
-								isDanmaku = true;
-								startAttack();
-							}
-						});
-						boxTween.start();
+						startMonsterTurn();
 					}, 1);
 				}
 			}
@@ -361,7 +410,7 @@ class PlayState extends State
 				if (FlxG.keys.pressed.RIGHT #if TOUCH_CONTROLS || mobilePad.buttonRight.pressed #end)
 					heart.x += Global.speed;
 
-				//FlxSpriteUtil.bound(heart, box.x, (box.x + box.shapeWidth), box.y, (box.y + box.shapeHeight));
+				FlxSpriteUtil.bound(heart, box.x, (box.x + box.shapeWidth), box.y, (box.y + box.shapeHeight));
 			}
 		}
 
@@ -371,84 +420,40 @@ class PlayState extends State
 			handleOverlap(heart, Attack1.AttackImage);
 	}
 
-	public function handleOverlap(player:FlxSprite, object:FlxSprite):Void
-	{
-		// Eğer nesne hala aktifse (daha önce çarpışılmadıysa)
-		if (object.visible) {
-			Global.hp -= 1;
-			hpInfo.text = '${Global.hp} / ${Global.maxHp}';
-			FlxG.sound.play(Paths.sound('hurtsound')); //Hasar aldığını anlamak için ses (flicker'da eklicem daha sonra)
-		}
-	}
-
-	private function actThing()
-	{
-		switch (actOptions[arraySelected])
-		{
-			case 'Fuck':
-				actPage.disableAct();
-				arrayChoiceMenuOpened = false;
-				heart.visible = false;
-				dialogText.changeText(1, 'Fuck This Shit We\'re out', false);
-				arrayChoiceSelected = true;
-		}
-	}
-
-	private function secondActThing()
-	{
-		switch (actOptions[arraySelected])
-		{
-			case 'Fuck':
-				heart.visible = false;
-				attacked = false;
-				dialogText.changeText(1, '', true);
-				arrayChoiceSelected = false;
-				choiceChoiced = true;
-				startMonsterTurn();
-		}
-	}
-
-	//Starts the monster's turn (I make it as function because I'll make `startPlayerTurn` too)
-	public function startMonsterTurn() {
-		var boxTween:FlxTween = FlxTween.tween(box, {x: 248.875, shapeWidth: box.shapeHeight}, 0.5, {
-			onComplete: function(tween:FlxTween):Void
-			{
-				changeChoice();
-				heart.x = ((box.x - box.offset.x) + box.shapeWidth / 2) - heart.width;
-				heart.y = ((box.x - box.offset.y) + box.shapeWidth / 2) - heart.height;
-				heart.visible = true;
-				isDanmaku = true;
-				startAttack();
-			}
-		});
-		boxTween.start();
-	}
-
 	private function changeChoice(num:Int = 0):Void
 	{
 		if (num != 0)
 			FlxG.sound.play(Paths.sound('menumove'));
 
+		/* Put Array Choise Things (Systems like Item or Act Menu) Here */
 		if (arrayChoiceMenuOpened)
 		{
-			arraySelected = FlxMath.wrap(arraySelected + num, 0, actOptions.length - 1);
+			var currentPage:Dynamic = null;
+			if (curArrayMenu == 'Act') currentPage = actPage;
+			else if (curArrayMenu == 'Item') currentPage = itemPage;
+			else if (curArrayMenu == 'Mercy') currentPage = mercyPage;
 
-			actPage.items.forEach(function(spr:FlxTypeText)
+			var currentOptionsLength:Int = 0;
+			if (curArrayMenu == 'Act') currentOptionsLength = actOptions.length;
+			else if (curArrayMenu == 'Item') currentOptionsLength = itemOptions.length;
+			else if (curArrayMenu == 'Mercy') currentOptionsLength = mercyOptions.length;
+
+			arraySelected = FlxMath.wrap(arraySelected + num, 0, currentOptionsLength - 1);
+
+			currentPage.items.forEach(function(spr:FlxTypeText)
 			{
-				//trace('forEach ${spr.ID}');
 				if (spr.ID == arraySelected)
 				{
-					//heart.setPosition(spr.x + 8, spr.y + 14);
 					switch(spr.ID)
 					{
 						case 0:
 							heart.setPosition(box.x + 16, box.y + 26);
 						case 1:
-							heart.setPosition(box.x + 366, box.y + 26);
+							heart.setPosition(box.x + 316, box.y + 26);
 						case 2:
-							heart.setPosition(box.x + 16, box.y + 76);
+							heart.setPosition(box.x + 16, box.y + 66);
 						case 3:
-							heart.setPosition(box.x + 366, box.y + 76);
+							heart.setPosition(box.x + 316, box.y + 66);
 					}
 				}
 			});
@@ -471,9 +476,125 @@ class PlayState extends State
 		}
 	}
 
+	/* Benim Orjinal Projenin üstüne eklediğim extra fonksiyonlar, karışmasınlar diye ayırdım */
+	public function handleOverlap(player:FlxSprite, object:FlxSprite):Void
+	{
+		// Eğer nesne hala aktifse (daha önce çarpışılmadıysa)
+		if (object.visible) {
+			Global.hp -= 1;
+			hpInfo.text = '${Global.hp} / ${Global.maxHp}';
+			FlxG.sound.play(Paths.sound('hurtsound')); //Hasar aldığını anlamak için ses (flicker'da eklicem daha sonra)
+		}
+	}
+
+	private function actThing()
+	{
+		switch (actOptions[arraySelected])
+		{
+			case 'Fuck':
+				actPage.visible = false;
+				arrayChoiceMenuOpened = false;
+				heart.visible = false;
+				dialogText.changeText(1, 'Fuck This Shit We\'re out', false);
+				arrayChoiceSelected = true;
+		}
+	}
+
+	private function itemThing()
+	{
+		var itemExist:Bool = false; //check item existing
+		switch (itemOptions[arraySelected])
+		{
+			case 'Pie':
+				var eatText:String = 'You ate the Pie,\nyou recovered 99 HP';
+				Global.hp += 99;
+				if (Global.hp > Global.maxHp) {
+					Global.hp = Global.maxHp;
+					eatText = 'You ate the Pie,\nyour HP is maxed';
+				}
+				hpInfo.text = '${Global.hp} / ${Global.maxHp}';
+				itemPage.visible = false;
+				arrayChoiceMenuOpened = false;
+				heart.visible = false;
+				dialogText.changeText(1, eatText, false);
+				arrayChoiceSelected = true;
+				itemExist = true;
+		}
+		if (itemExist) {
+			itemOptions.remove(itemOptions[arraySelected]); //remove item after the use it (separated from Global.items for easier testing)
+			itemPage.updateMenuItems(itemOptions); //Update current items
+		}
+	}
+
+	private function mercyThing()
+	{
+		switch (mercyOptions[arraySelected])
+		{
+			case 'Flee':
+				mercyPage.visible = false;
+				arrayChoiceMenuOpened = false;
+				//heart.visible = false;
+				dialogText.changeText(1, 'You escaped from sans', false);
+				arrayChoiceSelected = true;
+				if (Global.hp >= 98) heart.visible = false;
+				Global.hp -= 98; //1 HP Lol
+				hpInfo.text = '${Global.hp} / ${Global.maxHp}';
+		}
+	}
+
+	private function TriggerAttack()
+	{
+		heart.visible = false;
+		attacked = false;
+		dialogText.changeText(1, '', true);
+		arrayChoiceSelected = false;
+		choiceChoiced = true;
+		startMonsterTurn();
+	}
+
+	//Starts the monster's turn (I make it as function because I'll make `startPlayerTurn` too)
+	public function startMonsterTurn() {
+		var boxTween:FlxTween = FlxTween.tween(box, {x: 248.875, shapeWidth: box.shapeHeight}, 0.5, {
+			onComplete: function(tween:FlxTween):Void
+			{
+				changeChoice();
+				heart.x = ((box.x - box.offset.x) + box.shapeWidth / 2) - heart.width;
+				heart.y = ((box.x - box.offset.y) + box.shapeWidth / 2) - heart.height;
+				heart.visible = true;
+				isDanmaku = true;
+				startAttack();
+			}
+		});
+		boxTween.start();
+	}
+
+	public function startPlayerTurn():Void {
+		heart.visible = false;
+		attacked = false;
+		//reset the variables
+		arrayChoiceSelected = false;
+		arrayChoiceMenuOpened = false;
+		arraySelected = 0;
+		choiceChoiced = false;
+		choiceSelected = false;
+		var boxTween:FlxTween = FlxTween.tween(box, {x: 32, shapeWidth: box.firstShapeWidth}, 0.5, {
+			onComplete: function(tween:FlxTween):Void
+			{
+				changeChoice();
+				dialogText.changeText(1, defaultText, false);
+				heart.visible = true;
+				isDanmaku = false;
+			}
+		});
+		boxTween.start();
+	}
+
 	function startAttack() {
 		Attack1.x = 0;
 		Attack1.visible = true;
 		FlxTween.tween(Attack1, {x: 640}, 5);
+		new FlxTimer().start(7.0, function(timer:FlxTimer) {
+			startPlayerTurn();
+		});
 	}
 }

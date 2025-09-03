@@ -15,10 +15,11 @@ class ActBar
 			Gerçi bu normal çünkü variable'ları oluşturmamış oluyorum teknik olarak -KralOyuncu2010x */
 	}
 
-	public function createDialog(texts:Array<String>, ?optionCount:Int = 1, ?skipTextAnim:Bool = false) {
+	public function createMenu(?optionCount:Int = 1, ?skipTextAnim:Bool = false) {
 		var createdOptions:Int = 0;
 		var ins = PlayState.instance;
 		items = new FlxTypedGroup<FlxTypeText>();
+		/*
 		for (text in texts) {
 			createdOptions += 1;
 			if (createdOptions == 1 && optionCount >= 1) {
@@ -35,6 +36,23 @@ class ActBar
 				addOption(textOption4, 3, skipTextAnim);
 			}
 		}
+		*/
+		for (i in 0...5) {
+			createdOptions += 1;
+			if (createdOptions == 1 && optionCount >= 1) {
+				textOption1 = new FlxTypeText(ins.box.x + 14, ins.box.y + 14, Std.int(ins.box.width), '* example', 32, true);
+				addOption(textOption1, 0, skipTextAnim);
+			} if (createdOptions == 2 && optionCount >= 2) {
+				textOption2 = new FlxTypeText(ins.box.x + 314, ins.box.y + 14, Std.int(ins.box.width), '* example', 32, true);
+				addOption(textOption2, 1, skipTextAnim);
+			} if (createdOptions == 3 && optionCount >= 3) {
+				textOption3 = new FlxTypeText(ins.box.x + 14, ins.box.y + 54, Std.int(ins.box.width), '* example', 32, true);
+				addOption(textOption3, 2, skipTextAnim);
+			} if (createdOptions == 4 && optionCount >= 4) {
+				textOption4 = new FlxTypeText(ins.box.x + 314, ins.box.y + 54, Std.int(ins.box.width), '* example', 32, true);
+				addOption(textOption4, 3, skipTextAnim);
+			}
+		}
 		PlayState.instance.add(items);
 	}
 
@@ -45,12 +63,8 @@ class ActBar
 		option.scrollFactor.set();
 		option.cameras = [ins.camGame];
 		items.add(option);
-		if (skipTextAnim) {
-			option.start(0.1, true);
-			option.skip();
-		} else {
-			option.start(0.04, true);
-		}
+		if (skipTextAnim) startAndSkip(option);
+		else option.start(0.04, true);
 		option.ID = ID;
 	}
 
@@ -60,40 +74,69 @@ class ActBar
 		switch (number)
 		{
 			case 1:
-				if (textOption1 != null) textOption1.resetText(text);
-				if (skip) {
-					textOption1.start(0.1, true);
-					textOption1.skip();
-				} else {
-					textOption1.start(0.04, true);
-				}
+				createOrChangeText(text, textOption1);
+				if (skip) startAndSkip(textOption1);
+				else textOption1.start(0.04, true);
 			case 2:
-				if (textOption2 != null) textOption2.resetText(text);
-				if (skip) {
-					textOption2.start(0.1, true);
-					textOption2.skip();
-				} else {
-					textOption2.start(0.04, true);
-				}
+				createOrChangeText(text, textOption2);
+				if (skip) startAndSkip(textOption2);
+				else textOption2.start(0.04, true);
 			case 3:
-				if (textOption3 != null) textOption3.resetText(text);
-				if (skip) {
-					textOption3.start(0.1, true);
-					textOption3.skip();
-				} else {
-					textOption3.start(0.04, true);
-				}
+				createOrChangeText(text, textOption3);
+				if (skip) startAndSkip(textOption3);
+				else textOption3.start(0.04, true);
 			case 4:
-				if (textOption4 != null) textOption4.resetText(text);
-				if (skip) {
-					textOption4.start(0.1, true);
-					textOption4.skip();
-				} else {
-					textOption4.start(0.04, true);
-				}
+				createOrChangeText(text, textOption4);
+				if (skip) startAndSkip(textOption4);
+				else textOption4.start(0.04, true);
 		}
 	}
 
+	public function updateMenuItems(texts:Array<String>, ?skip:Bool = true)
+	{
+		//made them empty
+		if (textOption1 != null) textOption1.resetText('');
+		if (textOption2 != null) textOption2.resetText('');
+		if (textOption3 != null) textOption3.resetText('');
+		if (textOption4 != null) textOption4.resetText('');
+
+		//now update the texts (missing ones will be empty)
+		var createdOptions:Int = 0;
+		for (text in texts) {
+			createdOptions += 1;
+			switch (createdOptions)
+			{
+				case 1:
+					createOrChangeText(text, textOption1);
+					if (skip) startAndSkip(textOption1);
+					else textOption1.start(0.04, true);
+				case 2:
+					createOrChangeText(text, textOption2);
+					if (skip) startAndSkip(textOption2);
+					else textOption2.start(0.04, true);
+				case 3:
+					createOrChangeText(text, textOption3);
+					if (skip) startAndSkip(textOption3);
+					else textOption3.start(0.04, true);
+				case 4:
+					createOrChangeText(text, textOption4);
+					if (skip) startAndSkip(textOption4);
+					else textOption4.start(0.04, true);
+			}
+		}
+	}
+
+	function createOrChangeText(text:String, option:FlxTypeText) {
+		if (text == '') option.resetText('${text}');
+		else if (option != null) option.resetText('* ${text}');
+	}
+
+	function startAndSkip(option:FlxTypeText) {
+		option.start(0.1, true);
+		option.skip();
+	}
+
+	/* eski fonksiyonlar (visible'ı kullanmak daha az kafa karıştırıcı, o nedenle ona geçtim)
 	public function addAct() {
 		PlayState.instance.add(items);
 	}
@@ -105,5 +148,13 @@ class ActBar
 	}
 	public function disableAct() {
 		items.visible = false;
+	}
+	*/
+
+	public var visible(default, set):Bool;
+	function set_visible(Value:Bool):Bool
+	{
+		items.visible = Value;
+		return Value;
 	}
 }

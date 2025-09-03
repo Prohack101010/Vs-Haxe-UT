@@ -1,2 +1,7 @@
-# Vs-Haxe--UT-
-This is a Simple Project for testing myself, based on FlxTale Repo (I'm lazy to set project.xml and it only gives the very basic things, so I need to re-write everything)
+# Vs Haxe (UT)
+<details>
+  <summary><h2>Credits</h2></summary>
+
+- [KralOyuncu 2010x](https://github.com/Prohack101010) || Owner of the project
+- [Kisaca Enes (Kısaca Enes)](https://github.com/Kisaca-Enes) || Helper of the project
+</details>
