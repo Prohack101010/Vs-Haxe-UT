@@ -3,26 +3,23 @@ package backends;
 import states.PlayState;
 
 /* Tek Bir Çağrıda Hem AttackImage'i Hemde AttackHitbox'ı oluşturur
-	AtackHitbox yerine sadede AttackImage Kullanılabilir ancak böylesi daha iyi */
-class Attack
+	AtackHitbox yerine sadece AttackImage Kullanılabilir ancak böylesi daha iyi */
+class Attack extends FlxSpriteGroup
 {
 	public var AttackImage:FlxSprite;
 	public var AttackHitbox:FlxSprite;
-	public function new() {
-		/* Hiçbirşey. Nedense bu fonksiyon olmadan `createAttack` fonksiyonuna erişmeyi denediğimde `Null Object` Hatası Alıyorum
-			Gerçi bu normal çünkü variable'ları oluşturmamış oluyorum teknik olarak -KralOyuncu2010x */
-	}
+	public function new(sprite:String, x:Float, y:Float, scale:Float, ?customScale:Int) {
+		super();
 
-	public function createAttack(sprite:String, x:Float, y:Float, scale:Float, ?customWidth:Int, ?customHeight:Int) {
 		AttackImage = new FlxSprite(x, y, Paths.sprite(sprite));
 
 		AttackImage.scrollFactor.set();
 		AttackImage.cameras = [PlayState.instance.camAttack];
 		AttackImage.scale.set(scale, scale);
-		PlayState.instance.add(AttackImage);
+		add(AttackImage);
 
-		if (customWidth == null) customWidth = Std.int(AttackImage.width);
-		if (customHeight == null) customHeight = Std.int(AttackImage.height);
+		var customWidth = Std.int(AttackImage.width);
+		var customHeight = Std.int(AttackImage.height);
 
 		AttackHitbox = new FlxSprite(x, y).makeGraphic(customWidth, customHeight);
 
@@ -30,16 +27,41 @@ class Attack
 		AttackHitbox.cameras = [PlayState.instance.camAttack];
 		AttackHitbox.scale.set(scale, scale);
 		AttackHitbox.alpha = 0.4; //This is hitbox of the object (for custom hitboxes)
-		PlayState.instance.add(AttackHitbox);
+		add(AttackHitbox);
+
+		// example: 20 * 5 = 100, so it should be same as the normal sans fight bone size
+		AttackImage.scale.y += customScale;
+		AttackHitbox.scale.y += customScale;
+	}
+
+	/*
+	public var angleThing(default, set):Float;
+	function set_angleThing(Value:Float):Float
+	{
+		AttackImage.angle = Value;
+		AttackHitbox.angle = Value;
+
+		AttackImage.updateHitbox();
+		AttackHitbox.updateHitbox();
+
+		return Value;
+	}
+	*/
+
+	public function createAttack(sprite:String, x:Float, y:Float, scale:Float, ?customWidth:Int, ?customHeight:Int) {
+		
 
 		/* `this` class'daki değeri almak için kullanılıyor, normal olan ise fonksiyondaki x/y'dir */
+		/*
 		this.x = x;
 		this.y = y;
 		this.angle = AttackImage.angle;
 		this.visible = AttackImage.visible;
+		*/
 	}
 
 	/* bazı basit şeyler için */
+	/* Not Needed anymore
 	public var x(default, set):Float;
 	function set_x(Value:Float):Float
 	{
@@ -88,4 +110,5 @@ class Attack
 
 		return Value;
 	}
+	*/
 }

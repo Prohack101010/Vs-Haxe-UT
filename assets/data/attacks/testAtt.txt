@@ -1,0 +1,3 @@
+Delay: 0.01 || Image: bone_normal || StartX: -10 || EndX: 640 || StartY: 300 || EndY: 300 || Scale: 2 || Angle: 90 || Speed: 3 || Color: BLUE
+Delay: 0.5 || Image: BoneV || StartX: -10 || EndX: 640 || StartY: 300 || EndY: 300 || Scale: 2 || Angle: 0 || Speed: 3 || Color: NORMAL
+Delay: 1.1 || Image: bone_normal || StartX: -10 || EndX: 640 || StartY: 300 || EndY: 300 || Scale: 2 || Angle: 90 || Speed: 3 || Color: BLUE

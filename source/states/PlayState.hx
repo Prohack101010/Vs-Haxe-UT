@@ -1,5 +1,13 @@
 package states;
 
+import haxe.io.Path;
+import flixel.FlxState;
+import haxe.io.Bytes;
+import haxe.io.Input;
+import flixel.FlxSprite;
+import flixel.FlxG;
+import scripting.HScript;
+
 import backends.Global;
 import backends.Monster;
 import backends.Paths;
@@ -55,19 +63,22 @@ class PlayState extends State
 	public var choiceSelected:Bool = false;
 	public var choiceChoiced:Bool = false;
 
-	public var monster:Monster;
+	public var monster:Sans;
 
 	public var camGame:FlxCamera;
 	public var camAttack:FlxCamera;
 
 	/* benim eklediğim variable'lar */
+	//Array Seçenekler için variable'lar
 	public var arrayChoiceSelected:Bool = false;
 	public var arrayChoiceMenuOpened:Bool = false;
 	public var attackFix:Bool = false; //basit bir fix
 	public var arraySelected:Int = 0;
 
 	// Attack Sistemi
-	public var Attack1:Attack = new Attack();
+	//public var Attack1:Attack = new Attack();
+	public var activeAttacks:Array<Dynamic> = [];
+	public var enemyHPBar:FlxBar;
 
 	//Daha iyi act sistemi
 	public var actPage:ActBar = new ActBar();
@@ -84,9 +95,14 @@ class PlayState extends State
 	public var curArrayMenu:String = null;
 	public var isDead:Bool = false; //ölümü kontrol etcek çünkü orjinal projeyi yapan mal yanlış yöntem kullanmış ve ektra kod eklemesi zor
 
+	public var scripts:ScriptPack;
+
 	override public function create()
 	{
 		super.create();
+
+		(scripts = new ScriptPack("PlayState")).setParent(this);
+		findAndStartScripts('scripts');
 
 		//Reset HP, If is it jot the same as the maximum one
 		if (Global.hp != Global.maxHp)
@@ -105,7 +121,8 @@ class PlayState extends State
 		FlxG.cameras.add(camAttack, false);
 
 		// Characters set
-		monster = new Monster(0, 0, "Sans");
+		monster = new Sans(0, 50, "Sans");
+		add(monster);
 
 		stats = new FlxText(30, 400, 0, Global.name + '   LV ' + Global.lv, 22);
 		stats.font = Paths.font('Small');
@@ -125,6 +142,12 @@ class PlayState extends State
 		hpBar.scrollFactor.set();
 		hpBar.cameras = [camGame];
 		add(hpBar);
+
+		enemyHPBar = new FlxBar(200, 200, LEFT_TO_RIGHT, Std.int(monster.data.maxHealth * 1.2), 20, monster.data, 'health', 0, monster.data.maxHealth);
+		enemyHPBar.createFilledBar(FlxColor.RED, FlxColor.YELLOW);
+		enemyHPBar.scrollFactor.set();
+		enemyHPBar.cameras = [camGame];
+		add(enemyHPBar);
 
 		hpInfo = new FlxText((hpBar.x + 15) + hpBar.width, hpBar.y, 0, Global.hp + ' / ' + Global.maxHp, 22);
 		hpInfo.font = Paths.font('Small');
@@ -207,11 +230,13 @@ class PlayState extends State
 		add(targetAttackerUnderlay);
 
 		//Test Saldırısı
+		/*
 		Attack1.createAttack('bone_normal', 0, 0, 2);
 		Attack1.angle += 90;
 		Attack1.cameras = [camGame];
 		Attack1.y = box.y;
 		Attack1.visible = false;
+		*/
 
 		changeChoice();
 		choiceSelected = false;
@@ -227,6 +252,8 @@ class PlayState extends State
 	override public function update(elapsed:Float)
 	{
 		super.update(elapsed);
+
+		/* What the fuck */
 		// camGame.angle += 1;
 		if (FlxG.keys.justPressed.ESCAPE #if TOUCH_CONTROLS || mobilePad.buttonC.justPressed #end)
 			FlxG.switchState(new TitleState());
@@ -379,12 +406,58 @@ class PlayState extends State
 			{
 				if (targetChoiceTween.active)
 				{
+					/* Yapay Zeka Yardımlı daha iyi bir kod (eskisini sildinz tabi bu üçüncü commit olduğundan aradaki local değişikler github'da olmuyor
+						o yüzden siktir edin amk, zaten bok gibiydi) */
+					// hizalama için kullanıldı
+					var obj1:FlxSprite = new FlxSprite(targetSpr.x, targetSpr.y).makeGraphic(
+						Std.int(targetSpr.width / 2),
+						Std.int(targetSpr.height)
+					);
+					obj1.alpha = 0;
+					obj1.cameras = [camGame];
+					add(obj1);
+
+					//7.25 ile çarptım obj1 ile ters x ekseninde hizalamak istiyorum
+					var obj2:FlxSprite = new FlxSprite(targetSpr.x * 7.25, targetSpr.y).makeGraphic(
+						Std.int(targetSpr.width / 2),
+						Std.int(targetSpr.height),
+						FlxColor.RED
+					);
+					obj2.alpha = 0;
+					obj2.cameras = [camGame];
+					add(obj2);
+
+					// Accuracy hesapla
+					var centerX = targetSpr.x + targetSpr.width / 2;
+					var dx = Math.abs(targetAttackerBase.x - centerX);
+
+					// Eğer overlap varsa ters tarafa göre hesapla
+					final overlaped = FlxCollision.pixelPerfectCheck(heart, obj2);
+					if (overlaped) {
+						dx = Math.abs(targetAttackerBase.x - (targetSpr.x + targetSpr.width * 2));
+					}
+
+					var maxDx = targetSpr.width / 2;
+					var acc = 1 - (dx / maxDx); // 0..1
+					acc = Math.max(0, Math.min(1, acc)); // clamp
+
+					// Damage hesapla (accuracy % ile birebir aynı)
+					var baseDamage = 100;
+					var finalDamage = Std.int(baseDamage * acc);
+
+					// Kritik bonus (opsiyonel)
+					if (acc > 0.98) finalDamage = Std.int(finalDamage * 1.25);
+
+					trace("Accuracy: " + Std.int(acc * 100) + "% | Damage: " + finalDamage);
+
+					monster.data.health -= finalDamage;
+
 					targetChoiceTween.cancel();
 					attackFix = false;
 					FlxG.sound.play(Paths.sound('slice'));
 					targetAttackerUnderlay.x = targetAttackerBase.x;
 					attacked = true;
-					monster.health -= 10;
+					//monster.health -= 10;
 					new FlxTimer().start(1, (timer:FlxTimer) ->
 					{
 						attacked = false;
@@ -415,9 +488,27 @@ class PlayState extends State
 		}
 
 		//FlxG.overlap(heart, Attack1.AttackHitbox, handleOverlap);
-		final overlaped = FlxCollision.pixelPerfectCheck(heart, Attack1.AttackHitbox);
-		if (overlaped)
-			handleOverlap(heart, Attack1.AttackImage);
+		for (activeAttack in activeAttacks) {
+			final overlaped = FlxCollision.pixelPerfectCheck(heart, activeAttack.AttackHitbox);
+			if (overlaped && activeAttack.color != FlxColor.BLUE)
+				handleOverlap(heart, activeAttack.AttackImage);
+			else if (overlaped) {
+				if (checkIsPlayerMoving())
+					handleOverlap(heart, activeAttack.AttackImage);
+			}
+		}
+	}
+
+	function checkIsPlayerMoving():Bool {
+		if ((FlxG.keys.pressed.UP #if TOUCH_CONTROLS || mobilePad.buttonUp.pressed #end) && isDanmaku)
+			return true;
+		if ((FlxG.keys.pressed.DOWN #if TOUCH_CONTROLS || mobilePad.buttonDown.pressed #end) && isDanmaku)
+			return true;
+		if ((FlxG.keys.pressed.LEFT #if TOUCH_CONTROLS || mobilePad.buttonLeft.pressed #end) && isDanmaku)
+			return true;
+		if ((FlxG.keys.pressed.RIGHT #if TOUCH_CONTROLS || mobilePad.buttonRight.pressed #end) && isDanmaku)
+			return true;
+		return false;
 	}
 
 	private function changeChoice(num:Int = 0):Void
@@ -569,6 +660,7 @@ class PlayState extends State
 	}
 
 	public function startPlayerTurn():Void {
+		activeAttacks = []; //start Player turn removes the active attacks
 		heart.visible = false;
 		attacked = false;
 		//reset the variables
@@ -589,12 +681,130 @@ class PlayState extends State
 		boxTween.start();
 	}
 
+	var attackPassed:Int = 0;
 	function startAttack() {
-		Attack1.x = 0;
-		Attack1.visible = true;
-		FlxTween.tween(Attack1, {x: 640}, 5);
+		//Attack1.x = 0;
+		//Attack1.visible = true;
+		/*
+		loadCsvAttack("testAtt"); //Zıplama Saldırısı
+		//FlxTween.tween(Attack1, {x: 640}, 5);
 		new FlxTimer().start(7.0, function(timer:FlxTimer) {
 			startPlayerTurn();
 		});
+		*/
+		scripts.call("onStartAttack");
+		attackPassed++;
+	}
+
+	/*
+	function loadCsvAttack(csvPath:String):Void {
+		// CSV dosyasını byte olarak yükleyelim
+		var bytes:Bytes = haxe.Resource.getBytes(csvPath); // Alternatif: haxe.io.Bytes.ofData(File.readBytes(csvPath))
+		var input:Input = new Input(bytes);
+
+		var header = input.readLine().split(","); // Örnek: ["time","x","y","type"]
+		//cikti: [bilinmeyen, attackismi, x, y, yükseklik, yön, hız, renk]
+		trace("CSV Başlığı: " + header);
+
+		while (!input.eof()) {
+			var line = input.readLine();
+			if (line == null) break;
+			var cols = line.split(",");
+
+			var time = Std.parseFloat(cols[0]);
+			var x = Std.parseFloat(cols[2]);
+			var y = Std.parseFloat(cols[3]);
+			var type = cols[1];
+
+			// Zamanlamaya göre saldırıları zamanlayalım
+			FlxG.signals.add( { delay: time, callback: function(_) {
+				spawnBoneAt(x, y, type);
+			}});
+		}
+	}
+	*/
+
+	public function loadCsvAttack(txt:String) {
+		for (line in TxtReader.readTxtFile(txt))
+		{
+			var data = line.split("|");
+			var delay = Std.parseFloat(data[0]);
+
+			new FlxTimer().start(delay, function(tmr:FlxTimer) {
+				spawnBoneAt(data);
+			});
+		}
+	}
+
+	function spawnBoneAt(data:Array<Dynamic>):Void {
+		var image = data[1];
+		var startX = Std.parseFloat(data[2]);
+		var endX = Std.parseFloat(data[3]);
+		var startY = Std.parseFloat(data[4]);
+		var endY = Std.parseFloat(data[5]);
+		var scale = Std.parseInt(data[6]);
+		var angle = Std.parseInt(data[7]);
+		var speed = Std.parseFloat(data[8]);
+		var color = data[9];
+
+		var colorS:FlxColor = FlxColor.WHITE;
+		switch (color) {
+			case 'BLUE':
+				colorS = FlxColor.BLUE;
+			case 'ORANGE':
+				colorS = FlxColor.ORANGE;
+			default:
+				colorS = FlxColor.WHITE;
+		}
+
+		var bone:Attack = new Attack(image, startX, startY, scale);
+		bone.color = colorS;
+		bone.cameras = [camGame];
+		add(bone);
+		activeAttacks.push(bone);
+
+		if (endX != startX) FlxTween.tween(bone, {x: endX}, speed);
+		if (endY != startY) FlxTween.tween(bone, {x: endY}, speed);
+		if (bone.AttackImage.angle != angle) bone.AttackImage.angle = angle;
+		if (bone.AttackHitbox.angle != angle) bone.AttackHitbox.angle = angle;
+
+		/*
+		if (direction == 'LEFT_TO_RIGHT') {
+			FlxTween.tween(bone, {x: endX}, speed);
+		}
+		else if (direction == 'RIGHT_TO_LEFT') {
+			bone.x = 640;
+			FlxTween.tween(bone, {x: 0}, speed);
+		}
+		*/
+	}
+
+	inline public static function directoriesWithFile(path:String, fileToFind:String)
+	{
+		var foldersToCheck:Array<String> = [];
+		if(FileSystem.exists(path + fileToFind))
+			foldersToCheck.push(path + fileToFind);
+		return foldersToCheck;
+	}
+
+	public function findAndStartScripts(scriptFolder:String)
+	{
+		var foldersToCheck:Array<String> = directoriesWithFile('assets/', '${scriptFolder}/');
+
+		for (folder in foldersToCheck)
+			for (file in FileSystem.readDirectory(folder))
+			{
+				if(file.toLowerCase().endsWith('.hsc'))
+					addScript(folder + file);
+			}
+	}
+
+	public function addScript(file:String) {
+		trace('addScript: ${file}');
+		var ext = Path.extension(file).toLowerCase();
+		if (Script.scriptExtensions.contains(ext))
+		{
+			scripts.add(Script.create(file));
+		}
 	}
 }

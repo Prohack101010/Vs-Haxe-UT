@@ -181,9 +181,9 @@ class Paths
 		return 'assets/images/sprites/$key.png';
 	}
 
-	public static inline function spriteOG(key:String):String
+	public static inline function spriteXml(key:String):String
 	{
-		return 'assets/images/sprites/$key';
+		return 'assets/images/sprites/$key.xml';
 	}
 
 	public static function font(key:String):String
@@ -213,6 +213,16 @@ class Paths
 			FlxG.log.error(e.message);
 
 		return null;
+	}
+
+	public static inline function csv(key:String):String
+	{
+		return Assets.getText('$key.csv');
+	}
+
+	inline static public function getSparrowAtlas(key:String):FlxAtlasFrames
+	{
+		return FlxAtlasFrames.fromSparrow(sprite(key), spriteXml(key));
 	}
 
 	public static function spritesheet(data:{key:String, sheet:Array<SheetData>}):FlxAtlasFrames

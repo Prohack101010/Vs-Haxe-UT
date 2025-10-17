@@ -25,8 +25,8 @@ class Monster extends FlxSpriteGroup
 		super(x, y);
 		data = {
 			name: name,
-			health: 50,
-			maxHealth: 50,
+			health: 200,
+			maxHealth: 200,
 			attack: 0,
 			defense: 0,
 			xpReward: 0,

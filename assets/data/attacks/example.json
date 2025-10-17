@@ -1,0 +1,13 @@
+{
+  "BoneV": [
+    {
+      "delay": 0.2,
+      "x": 503,
+      "y": 286,
+      "height": 100,
+      "direction": 2,
+      "speed": 3,
+      "color": 1
+    }
+  ]
+}

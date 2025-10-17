@@ -3,6 +3,7 @@ import mobile.backend.*;
 import mobile.objects.*;
 import mobile.macros.*;
 import backends.*;
+import scripting.HScript;
 
 #if sys
 import sys.*;

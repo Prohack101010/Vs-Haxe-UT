@@ -49,6 +49,9 @@
 	<define name="TOUCH_CONTROLS" if="mobile"/>
 	<define name="RESIZE_NORMAL_BUTTONS" if="mobile"/>
 
+	<!-- Comment this out to prevent extending classes in hscript.
+		 Reduces compilation time at the cost of limited HScript flexibility. !-->
+	<define name="CUSTOM_CLASSES" unless="STRIPPED_COMPILE" />
 
 	<!-- _______________________________ Libraries ______________________________ -->
 
@@ -56,6 +59,9 @@
 
 	<!--In case you want to use the addons package-->
 	<haxelib name="flixel-addons" />
+
+	<haxelib name="hscript-improved" />
+	<define name="hscriptPos" />
 
 	<!--In case you want to use the ui package-->
 	<!--<haxelib name="flixel-ui" />-->
